@@ -1,0 +1,285 @@
+// Aura - Personal Productivity & Learning Platform
+// Database schema (Prisma / PostgreSQL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum RecurrenceFrequency {
+  NONE
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum ResourceType {
+  LINK
+  FILE
+  NOTE
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum TokenType {
+  REFRESH
+  PASSWORD_RESET
+}
+
+enum Theme {
+  LIGHT
+  DARK
+}
+
+// ---------------------------------------------------------------------------
+// Users
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String   @db.VarChar(120)
+  email         String   @unique @db.VarChar(254)
+  passwordHash  String   @map("password_hash")
+  profileImage  String?  @map("profile_image")
+  theme         Theme    @default(DARK)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  tasks         Task[]
+  categories    Category[]
+  resources     Resource[]
+  englishWords  EnglishWord[]
+  goals         Goal[]
+  tokens        AuthToken[]
+  quizAttempts  QuizAttempt[]
+  taskAttachments TaskAttachment[]
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Auth tokens (refresh sessions + password reset)
+// ---------------------------------------------------------------------------
+
+model AuthToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  type      TokenType
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type, expiresAt])
+  @@map("auth_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Categories
+// ---------------------------------------------------------------------------
+
+model Category {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  name        String   @db.VarChar(80)
+  description String?
+  color       String   @default("#8b5cf6") @db.VarChar(9)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  resources   Resource[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("categories")
+}
+
+// ---------------------------------------------------------------------------
+// Tasks (including recurring tasks via series)
+// ---------------------------------------------------------------------------
+
+model Task {
+  id                 String              @id @default(uuid()) @db.Uuid
+  userId             String              @map("user_id") @db.Uuid
+  categoryId         String?             @map("category_id") @db.Uuid
+  title              String              @db.VarChar(255)
+  description        String?
+  priority           TaskPriority        @default(MEDIUM)
+  status             TaskStatus          @default(PENDING)
+  startDate          DateTime?           @map("start_date") @db.Date
+  dueDate            DateTime?           @map("due_date") @db.Date
+  startTime          String?             @map("start_time") @db.VarChar(5)
+  endTime            String?             @map("end_time") @db.VarChar(5)
+  notes              String?
+  links              Json?               @default("[]")
+  recurrence         RecurrenceFrequency @default(NONE)
+  recurrenceInterval Int                 @default(1) @map("recurrence_interval")
+  recurrenceEndDate  DateTime?           @map("recurrence_end_date") @db.Date
+  seriesId           String?             @map("series_id") @db.Uuid
+  occurrenceIndex    Int?                @map("occurrence_index")
+  completedAt        DateTime?           @map("completed_at")
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category           Category?           @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  attachments        TaskAttachment[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, dueDate])
+  @@index([seriesId])
+  @@index([userId, recurrence])
+  @@map("tasks")
+}
+
+model TaskAttachment {
+  id        String   @id @default(uuid()) @db.Uuid
+  taskId    String   @map("task_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  fileName  String   @map("file_name") @db.VarChar(255)
+  filePath  String   @map("file_path") @db.VarChar(500)
+  fileSize  Int      @map("file_size")
+  mimeType  String?  @map("mime_type") @db.VarChar(120)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([taskId])
+  @@map("task_attachments")
+}
+
+// ---------------------------------------------------------------------------
+// Resources (links, files, notes)
+// ---------------------------------------------------------------------------
+
+model Resource {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @map("user_id") @db.Uuid
+  categoryId  String?      @map("category_id") @db.Uuid
+  title       String       @db.VarChar(255)
+  description String?
+  url         String?      @db.VarChar(2000)
+  type        ResourceType @default(LINK)
+  fileName    String?      @map("file_name") @db.VarChar(255)
+  filePath    String?      @map("file_path") @db.VarChar(500)
+  fileSize    Int?         @map("file_size")
+  mimeType    String?      @map("mime_type") @db.VarChar(120)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category    Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([userId, type])
+  @@index([userId, categoryId])
+  @@map("resources")
+}
+
+// ---------------------------------------------------------------------------
+// English vocabulary
+// ---------------------------------------------------------------------------
+
+model EnglishWord {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  word            String   @db.VarChar(120)
+  meaning         String   @db.VarChar(500)
+  exampleSentence String?  @map("example_sentence")
+  pronunciation   String?  @db.VarChar(120)
+  notes           String?
+  category        String?  @db.VarChar(80)
+  isFavorite      Boolean  @default(false) @map("is_favorite")
+  isLearned       Boolean  @default(false) @map("is_learned")
+  reviewCount     Int      @default(0) @map("review_count")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, word])
+  @@index([userId])
+  @@index([userId, isLearned])
+  @@index([userId, isFavorite])
+  @@index([userId, category])
+  @@map("english_words")
+}
+
+// ---------------------------------------------------------------------------
+// Quiz attempts (vocabulary quiz history)
+// ---------------------------------------------------------------------------
+
+model QuizAttempt {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  totalQuestions  Int      @map("total_questions")
+  correctAnswers  Int      @map("correct_answers")
+  wrongAnswers    Int      @map("wrong_answers")
+  scorePercent    Float    @map("score_percent")
+  details         Json     @default("[]")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@map("quiz_attempts")
+}
+
+// ---------------------------------------------------------------------------
+// Goals
+// ---------------------------------------------------------------------------
+
+model Goal {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @map("user_id") @db.Uuid
+  title       String     @db.VarChar(255)
+  description String?
+  deadline    DateTime?  @db.Date
+  progress    Int        @default(0)
+  status      GoalStatus @default(ACTIVE)
+  category    String?    @db.VarChar(80)
+  completedAt DateTime?  @map("completed_at")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, deadline])
+  @@map("goals")
+}

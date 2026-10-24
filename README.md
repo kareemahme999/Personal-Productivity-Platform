@@ -32,24 +32,34 @@ Tasks · Recurring schedules · Calendar · Resources · English vocabulary · Q
 
 ---
 
-## 📸 Preview
+## 🧭 App at a glance
+
+```mermaid
+flowchart LR
+    Login([🔐 Sign in]) --> Dash["📊 Dashboard"]
+    Dash --> Tasks["✅ Tasks"]
+    Dash --> Cal["🗓️ Calendar"]
+    Dash --> Res["📚 Resources"]
+    Dash --> Vocab["🇬🇧 Vocabulary"]
+    Dash --> Goals["🎯 Goals"]
+    Dash --> Stats["📈 Statistics"]
+    Dash --> Search["🔎 Search"]
+    Dash --> Profile["👤 Profile and theme"]
+    Tasks --> Rec["🔁 Recurring series"]
+    Tasks --> Att["📎 Attachments"]
+    Vocab --> Quiz["🧠 Quizzes"]
+    Quiz --> Hist["🕘 Quiz history"]
+```
 
 <!--
-  Add your screenshots to a /docs folder and replace the placeholders below.
-  Suggested shots: dashboard, tasks list, calendar, vocabulary quiz, statistics.
+  Optional: add real screenshots later. Put the images in docs/screenshots/
+  and then uncomment the block below (only after the files exist, otherwise
+  GitHub shows "image not found").
+
+  | Dashboard | Tasks and Calendar |
+  | :---: | :---: |
+  | ![Dashboard](docs/screenshots/dashboard.png) | ![Tasks](docs/screenshots/tasks-calendar.png) |
 -->
-
-<div align="center">
-
-| Dashboard | Tasks & Calendar |
-| :---: | :---: |
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Tasks and calendar](docs/screenshots/tasks-calendar.png) |
-
-| Vocabulary & Quizzes | Statistics |
-| :---: | :---: |
-| ![Vocabulary](docs/screenshots/vocabulary.png) | ![Statistics](docs/screenshots/statistics.png) |
-
-</div>
 
 ---
 
